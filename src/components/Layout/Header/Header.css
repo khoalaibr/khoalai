@@ -1,0 +1,104 @@
+/* src/components/Header/Header.css */
+
+.header {
+  display: flex;
+  align-items: center;
+  background-color: white;
+  color: var(--color-texto);
+  height: var(--ancho-header);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Logo (fijo a la izquierda, con un ancho similar a la sidebar expandida) */
+.header__logo {
+  height: var(--ancho-header);
+  width: var(--ancho-sidebar-expandida);
+  background-color: var(--color-primario);
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header__logo img {
+  max-height: 50px;
+  cursor: pointer;
+}
+
+.header__nav {
+  display: flex;
+  align-items: center;
+  /* No usamos flex:1, para que no se estire ocupando todo el espacio */
+  margin-left: 20px; /* separarlo un poco del logo */
+}
+
+/* Menú de navegación */
+.nav-menu {
+  list-style: none;
+  display: flex;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  justify-content: space-around;
+}
+
+.nav-menu__item {
+  flex-grow: 1;
+  text-align: center;
+}
+
+.nav-menu__link {
+  color: var(--color-secundario);
+  text-decoration: none;
+  text-transform: uppercase;
+  font-family: var(--fuente-principal);
+  display: block;
+  padding: 10px;
+  height: var(--ancho-header);
+  align-content: center;
+}
+
+.nav-menu__link:hover {
+  background-color: var(--color-fondo);
+  border-bottom: var(--color-secundario) 2px solid;
+  font-weight: 600;
+}
+
+.nav-menu__link--activa {
+  background-color: var(--color-secundario);
+  color: #fff !important;
+  font-weight: 600;
+}
+
+.header__user-register {
+  margin-left: auto; /* empuja todo a la izquierda y esto a la derecha */
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+}
+
+.user-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-icon {
+  font-size: 20px;
+  color: var(--color-secundario);
+}
+
+.user-logout {
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--color-primario);
+}
+
+.user-logout:hover {
+  text-decoration: underline;
+}

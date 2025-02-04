@@ -1,0 +1,66 @@
+/* src/styles/global.css */
+
+/* Variables CSS para colores y tipografías */
+:root {
+    /* Colores */
+    --color-primario: #21355b; /* Azul */
+    --color-primario-oscuro: #182542;
+    --color-secundario: #00ace7; /* Gris */
+    --color-acentuado: #099595; /* Color complementario (verde) */
+    --color-fondo: #f7f7f7; /* Fondo claro */
+    --color-texto: #343639; /* Texto oscuro */
+    --color-texto-claro: #75777b;
+  
+    --color-bg-primary: #cfe2ff;
+    --color-txt-primary: #052c65;
+    --color-brd-primary: #9ec5fe;
+    --color-bg-info: #cff4fc;
+    --color-txt-info: #055160;
+    --color-brd-info: #9eeaf9;
+    --color-bg-danger: #f8d7da;
+    --color-txt-danger: #58151c;
+    --color-brd-danger: #f1aeb5;
+    --color-bg-warning: #fff3cd;
+    --color-txt-warning: #664d03;
+    --color-brd-warning: #ffe69c;
+  
+    /* Tipografías */
+    --fuente-principal: 'Barlow', sans-serif;
+    --fuente-secundaria: 'Lato', sans-serif;
+  
+    /* Tamaños */
+    --ancho-sidebar-colapsada: 40px;
+    --ancho-sidebar-expandida: 200px;
+    --transicion: 0.3s ease;
+    --ancho-header: 60px;
+  }
+  
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  
+  /* Estilos globales */
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    font-family: var(--fuente-principal);
+    background-color: var(--color-fondo);
+    color: var(--color-texto);
+  }
+  
+  /* Titulos globales */
+  .heading-primary {
+    color: var(--color-secundario);
+    font-weight: 700;
+  }
+  
+  .heading-secondary {
+    color: var(--color-secundario);
+    font-weight: 600;
+  }
+  

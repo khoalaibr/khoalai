@@ -1,0 +1,65 @@
+/* src/components/Sidebar/Sidebar.css */
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: var(--ancho-sidebar-expandida);
+  background-color: var(--color-primario-oscuro);
+  color: white;
+  overflow-x: hidden;
+  transition: width var(--transicion);
+  padding-top: var(--ancho-header);
+  z-index: 999;
+}
+
+.sidebar--collapsed {
+  width: var(--ancho-sidebar-colapsada);
+}
+
+.sidebar__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* El NavLink se comporta como un li > a */
+.sidebar__item {
+  display: flex;
+  align-items: center;
+  padding: 15px 10px;
+  cursor: pointer;
+  text-decoration: none;
+  color: white;
+}
+
+.sidebar__item:hover {
+  background-color: var(--color-secundario);
+}
+
+.sidebar__item--activo {
+  background-color: var(--color-secundario);
+}
+
+.sidebar__icon {
+  margin-right: 10px;
+}
+
+.sidebar__text {
+  transition: opacity var(--transicion);
+}
+
+/* Cuando está colapsada, ocultar texto */
+.sidebar--collapsed .sidebar__text {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Botón toggle */
+.sidebar__toggle-btn {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  justify-content: center;
+}
