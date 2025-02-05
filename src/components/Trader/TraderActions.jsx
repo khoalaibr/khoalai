@@ -34,7 +34,8 @@ const TraderActions = () => {
       // Si no se tiene un precio válido, se omite
       if (current_price == null) continue;
 
-      if (buyCount >= 3 && sellCount === 0) {
+      //if (buyCount >= 3 && sellCount === 0) {
+        if (buyCount-sellCount >= 3) {
         try {
           // Se usa el valor real current_price
           const payload = {
