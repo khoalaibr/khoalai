@@ -625,3 +625,495 @@ export const EjemploPage = () => {
 }
 
 '''
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Bien, esta perfecto como lo planteaste. Y esta funcionando perfecto. Pero quisiera agregarle cosa a este despliegue de datos. Por el momento voy mostrando cuando se da bull o shel en las distintas estrategias. Pero ahora quiero que se haga algo cuando en una cierta accion se dan 3 o mas buy y ninguna shel. 
+Quiero que se ejecute el siguiente ENDPOINT: /trade/open
+
+Te paso su codigo (esta en Pyton) para que lo conozcas y sepas que valores tienes que mandarle. 
+'''
+@app.post("/trade/open", summary="Crear nueva negociación")
+def create_trade(trade: TradeCreate):
+    fecha_actual = datetime.date.today()
+    # Si initial_amount es 0 o no se envía, se usa el valor de compra
+    monto_inicial = trade.initial_amount if trade.initial_amount > 0 else trade.buy_price
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Verificar si ya existe una negociación activa para el mismo símbolo
+            cur.execute(
+                "SELECT id FROM traders WHERE symbol = %s AND active = true",
+                (trade.symbol,)
+            )
+            existing_trade = cur.fetchone()
+            if existing_trade is not None:
+                return {
+                    "message": f"Ya existe una negociación activa para la acción {trade.symbol}. No se creó una nueva negociación."
+                }
+
+            # Insertar la nueva negociación
+            cur.execute(
+                """
+                INSERT INTO traders 
+                (symbol, negotiation_date, update_date, buy_price, current_price, active, initial_amount, resulting_amount, gain_loss)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (trade.symbol, fecha_actual, fecha_actual, trade.buy_price, trade.buy_price, True, monto_inicial, monto_inicial, 0)
+            )
+            trade_id = cur.fetchone()[0]
+            conn.commit()
+    finally:
+        conn.close()
+
+    return {"id": trade_id, "message": "Negociación creada exitosamente"}
+
+'''
+Como habras podido ver, la idea de este ENDPOINT es abrir una nueva negociación, cada vez que se produzca al menos 3 buy de estrategias.
+
+symbol (es la accion), 
+negotiation_date (cuando abro la negociacion), update_date (para iniciar puede ser la misma anterior), 
+buy_price (precio de compra), 
+current_price (para iniciar puede ser el mismo), 
+active (inicia en true), 
+initial_amount (monto que inicio: vamos a colocarle 1000), 
+resulting_amount (al iniciar sera el mismo), 
+gain_loss
+
+......
+
+Hay algo mas. 
+Luego de pasar por todas las acciones y crear los traders/negociaciones necesarias. Me gustaria que recorrieras todos los traders activos que tengo (active=true) y verifiques si siguen teniendo al menos 3 buys. Si no tienen, entonces cerramos la negociacion (activo=false).
+Para esa actualizacion usamos el siguiente ENDPOINT:
+
+'''
+@app.put("/trade/update", summary="Actualizar negociación existente")
+def update_trade(trade: TradeUpdate):
+    fecha_actual = datetime.date.today()
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Obtener el buy_price y initial_amount actuales para poder recalcular
+            cur.execute("SELECT buy_price, initial_amount FROM traders WHERE id = %s", (trade.id,))
+            record = cur.fetchone()
+            if record is None:
+                raise HTTPException(status_code=404, detail="Negociación no encontrada")
+            buy_price, initial_amount = record
+
+            # Calcular el monto resultante y el porcentaje gain/loss
+            monto_resultante = initial_amount * (trade.current_price / buy_price)
+            gain_loss = (trade.current_price / buy_price - 1) * 100
+
+            cur.execute(
+                """
+                UPDATE traders
+                SET update_date = %s,
+                    current_price = %s,
+                    active = %s,
+                    resulting_amount = %s,
+                    gain_loss = %s
+                WHERE id = %s
+                """,
+                (fecha_actual, trade.current_price, trade.active, monto_resultante, gain_loss, trade.id)
+            )
+            conn.commit()
+    finally:
+        conn.close()
+
+    return {"id": trade.id, "message": "Negociación actualizada exitosamente"}
+
+'''
+
+Otra cosa que te pido es que, siguiendo el formato de los 2 endpoints que te pase. Me crees otro (en python) que me liste todas las negociaciones y las negociaciones activas. Ya que:
+1) Tu vas a necesitar conocer el listado de negociaciones para esta etapa de actualizar los que ya no tienen 3 buys.
+2) Yo necesitaria que me listes (en la parte izquierda de la pagina) todas las negociaciones, activas y encerradas (active=false)
+
+Crees que puedes ayudarme con todo esto?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Me he manejado mal con los traders.
+Mi ENDPOINT  que retornaba si deberia BUY o SHEL la accion, dependiendo de la estrategia, no devolvia el precio en el que se encontraba. 
+Luego, cuando queria crear una negociacion o actualizarlo, no tenia ese valor, que es lo mas importante. Me estaba comenzando las negociaciones en un valor ficticio de 100.
+Ahora si devuelve. El ENDPOINT me devuelve 'current_price' que es el precio actual.
+Por las dudas te paso un ejemplo de como se hace el retorno.
+Voy a  tomas una estrategia de ejemplo (pero esta para todas)
+'''
+@app.get("/backtest/{symbol}/ema_crossover_v2")
+def backtest_ema_crossover_v2_for_symbol(symbol: str):
+    df_db = load_last_n_days_from_db(symbol, 50)
+    if df_db.empty:
+        return {"symbol": symbol, "error": "No hay datos en BD"}
+
+    row_today = fetch_today_price_from_brapi(symbol)
+    if not row_today:
+        return {"symbol": symbol, "error": "No se pudo traer row de hoy"}
+
+    df_concat = pd.concat([df_db, pd.DataFrame([row_today])], ignore_index=True)
+    df_concat = df_concat.sort_values("price_date").reset_index(drop=True)
+    df_concat = calculate_indicators_for_predict(df_concat)
+    last_row = df_concat.iloc[-1]
+    price, indicators = map_row_to_price_indicators(last_row)
+    strategy = EmaCrossoverStrategy()
+    action = strategy.evaluate(price, indicators)
+
+    return {
+        "symbol": symbol,
+        "date": str(last_row["price_date"].date()),
+        "action": action,
+        "current_price": last_row["close_price"]
+    }
+
+'''
+Puedes hacerme los arreglos correspondiente, para que el precio: se muestre en los listados. Se guarde y actualice correctamente. 
+Te paso todos los archivos que trabajan con eso:
+'''
+// Ubicación: src/store/traderSlice.js
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import api from '../services/api';
+
+const strategies = [
+  "breakout_range", 
+  "fibonacci_rsi", 
+  "macd_crossover", 
+  "rsi_v2", 
+  "volume_breakout"
+];
+
+export const fetchConsolidatedActions = createAsyncThunk(
+  'trader/fetchConsolidatedActions',
+  async (_, { rejectWithValue }) => {
+    try {
+      // 1. Llamadas en paralelo para cada estrategia
+      const promises = strategies.map(async (strat) => {
+        const resp = await api.get(`/backtestAll/${strat}`);
+        let dataArr = Object.values(resp.data);
+        dataArr = dataArr.filter(item => item.action === 'Buy' || item.action === 'Sell');
+        return { strategy: strat, data: dataArr };
+      });
+      const allResults = await Promise.all(promises);
+
+      // 2. Construir el diccionario consolidado: { symbol: { strategy: action, ... } }
+      const dictionary = {};
+      allResults.forEach((res) => {
+        const strat = res.strategy;
+        res.data.forEach((item) => {
+          const sym = item.symbol;
+          if (!dictionary[sym]) {
+            dictionary[sym] = {};
+          }
+          dictionary[sym][strat] = item.action;
+        });
+      });
+
+      // 3. Convertir el diccionario a un arreglo plano para exportar
+      const flattenedData = [];
+      Object.keys(dictionary).forEach((sym) => {
+        const stratObj = dictionary[sym];
+        Object.keys(stratObj).forEach((s) => {
+          flattenedData.push({
+            symbol: sym,
+            strategy: s,
+            action: stratObj[s],
+          });
+        });
+      });
+
+      // (Opcional) Ordenar alfabéticamente
+      flattenedData.sort((a, b) =>
+        a.symbol.localeCompare(b.symbol) || a.strategy.localeCompare(b.strategy)
+      );
+
+      return { consolidated: dictionary, flattenedData };
+    } catch (err) {
+      return rejectWithValue(err.message || 'Error al consolidar acciones');
+    }
+  }
+);
+
+const traderSlice = createSlice({
+  name: 'trader',
+  initialState: {
+    consolidated: {},
+    flattenedData: [],
+    loading: false,
+    error: null,
+  },
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchConsolidatedActions.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.consolidated = {};
+        state.flattenedData = [];
+      })
+      .addCase(fetchConsolidatedActions.fulfilled, (state, action) => {
+        state.loading = false;
+        state.consolidated = action.payload.consolidated;
+        state.flattenedData = action.payload.flattenedData;
+      })
+      .addCase(fetchConsolidatedActions.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+  },
+});
+
+export default traderSlice.reducer;
+
+'''
+'''
+// Ubicación: src/store/traderSlice.js
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import api from '../services/api';
+
+const strategies = [
+  "breakout_range", 
+  "fibonacci_rsi", 
+  "macd_crossover", 
+  "rsi_v2", 
+  "volume_breakout"
+];
+
+export const fetchConsolidatedActions = createAsyncThunk(
+  'trader/fetchConsolidatedActions',
+  async (_, { rejectWithValue }) => {
+    try {
+      // 1. Llamadas en paralelo para cada estrategia
+      const promises = strategies.map(async (strat) => {
+        const resp = await api.get(`/backtestAll/${strat}`);
+        let dataArr = Object.values(resp.data);
+        dataArr = dataArr.filter(item => item.action === 'Buy' || item.action === 'Sell');
+        return { strategy: strat, data: dataArr };
+      });
+      const allResults = await Promise.all(promises);
+
+      // 2. Construir el diccionario consolidado: { symbol: { strategy: action, ... } }
+      const dictionary = {};
+      allResults.forEach((res) => {
+        const strat = res.strategy;
+        res.data.forEach((item) => {
+          const sym = item.symbol;
+          if (!dictionary[sym]) {
+            dictionary[sym] = {};
+          }
+          dictionary[sym][strat] = item.action;
+        });
+      });
+
+      // 3. Convertir el diccionario a un arreglo plano para exportar
+      const flattenedData = [];
+      Object.keys(dictionary).forEach((sym) => {
+        const stratObj = dictionary[sym];
+        Object.keys(stratObj).forEach((s) => {
+          flattenedData.push({
+            symbol: sym,
+            strategy: s,
+            action: stratObj[s],
+          });
+        });
+      });
+
+      // (Opcional) Ordenar alfabéticamente
+      flattenedData.sort((a, b) =>
+        a.symbol.localeCompare(b.symbol) || a.strategy.localeCompare(b.strategy)
+      );
+
+      return { consolidated: dictionary, flattenedData };
+    } catch (err) {
+      return rejectWithValue(err.message || 'Error al consolidar acciones');
+    }
+  }
+);
+
+const traderSlice = createSlice({
+  name: 'trader',
+  initialState: {
+    consolidated: {},
+    flattenedData: [],
+    loading: false,
+    error: null,
+  },
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchConsolidatedActions.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.consolidated = {};
+        state.flattenedData = [];
+      })
+      .addCase(fetchConsolidatedActions.fulfilled, (state, action) => {
+        state.loading = false;
+        state.consolidated = action.payload.consolidated;
+        state.flattenedData = action.payload.flattenedData;
+      })
+      .addCase(fetchConsolidatedActions.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+  },
+});
+
+export default traderSlice.reducer;
+
+'''
+'''
+// Ubicación: src/components/Trader/TradesList.jsx
+import React, { useEffect, useState } from 'react';
+import api from '../../services/api';
+
+const TradesList = () => {
+  const [trades, setTrades] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchTrades = async (active = null) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = active === null ? '/trade/list' : `/trade/list?active=${active}`;
+      const response = await api.get(url);
+      setTrades(response.data.trades);
+    } catch (err) {
+      setError(err.response?.data || err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Por ejemplo, cargar todas las negociaciones (activas y cerradas)
+    fetchTrades();
+  }, []);
+
+  return (
+    <div>
+      <h3>Listado de Negociaciones</h3>
+      {loading && <p>Cargando negociaciones...</p>}
+      {error && <p>Error: {error}</p>}
+      {trades.map(trade => (
+        <div key={trade.id}>
+          <p><strong>{trade.symbol}</strong> | {trade.active ? 'Activo' : 'Cerrado'}</p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default TradesList;
+
+'''
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

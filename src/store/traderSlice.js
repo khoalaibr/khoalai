@@ -31,10 +31,9 @@ export const fetchConsolidatedActions = createAsyncThunk(
         res.data.forEach((item) => {
           const sym = item.symbol;
           if (!dictionary[sym]) {
-            // Se guarda la primera vez con current_price del item
             dictionary[sym] = { actions: {}, current_price: item.current_price };
           }
-          // Actualizamos current_price en caso de que se haya modificado
+          // Actualizamos current_price (asumimos que cada respuesta trae el precio actual correcto)
           dictionary[sym].current_price = item.current_price;
           dictionary[sym].actions[strat] = item.action;
         });
