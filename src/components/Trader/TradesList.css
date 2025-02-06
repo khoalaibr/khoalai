@@ -1,0 +1,73 @@
+/* Ubicación: src/components/Trader/TradesList.css */
+
+.trades-list-container {
+    padding: 1rem;
+  }
+  
+  .trades-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  .trade-card {
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-brd-primary);
+    border-radius: 8px;
+    padding: 1rem;
+    width: 250px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform var(--transicion);
+  }
+  
+  .trade-card:hover {
+    transform: translateY(-5px);
+  }
+  
+  .trade-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--color-brd-primary);
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  .trade-card-header h4 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: var(--color-txt-primary);
+  }
+  
+  .trade-status {
+    font-size: 0.9rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    color: #fff;
+  }
+  
+  .trade-status.active {
+    background-color: var(--color-acentuado);
+  }
+  
+  .trade-status.inactive {
+    background-color: var(--color-bg-danger);
+    color: var(--color-txt-danger);
+  }
+  
+  .trade-card-body p {
+    margin: 0.3rem 0;
+    font-size: 0.9rem;
+    color: var(--color-texto);
+  }
+  
+  .gain-loss.positive {
+    color: green;
+    font-weight: bold;
+  }
+  
+  .gain-loss.negative {
+    color: red;
+    font-weight: bold;
+  }
+  
