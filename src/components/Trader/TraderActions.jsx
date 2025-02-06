@@ -137,15 +137,24 @@ const TraderActions = () => {
       )}
 
       {Object.keys(consolidated).length > 0 && !loading && (
-        <div>
+        <div className="consolidated-container">
           {Object.keys(consolidated).sort().map((sym, idx) => {
             const { actions, current_price } = consolidated[sym];
             return (
-              <div key={idx} className="mb-3">
-                <h5>{sym} (Precio actual: {current_price})</h5>
-                <ul>
+              <div key={idx} className="consolidated-card">
+                <div className="consolidated-header">
+                  {sym} (Precio actual: {current_price})
+                </div>
+                <ul className="consolidated-list">
                   {Object.keys(actions).map((st) => (
-                    <li key={st}>{st}: {actions[st]}</li>
+                    <li key={st} className="consolidated-item">
+                      <span>{st}:</span>
+                      <span
+                        className={`consolidated-action ${actions[st] === 'Buy' ? 'buy' : 'sell'}`}
+                      >
+                        {actions[st]}
+                      </span>
+                    </li>
                   ))}
                 </ul>
               </div>
