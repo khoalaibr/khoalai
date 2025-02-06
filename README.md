@@ -1107,174 +1107,21 @@ export default TradesList;
 
 
 
-Bueno, sigo con varios errores, pero creo que vienen del lado de la app en python. 
-Efectivamente, cuando hago el listado, el error que me esta dando es en como despliega mi app. 
-Fijate, he probado en POSTMAN 
-/trade/list y mira parte del resultado que me da:
-
-'''
-{
-    "trades": [
-        {
-            "id": "id",
-            "symbol": "symbol",
-            "negotiation_date": "negotiation_date",
-            "update_date": "update_date",
-            "buy_price": "buy_price",
-            "current_price": "current_price",
-            "active": "active",
-            "initial_amount": "initial_amount",
-            "resulting_amount": "resulting_amount",
-            "gain_loss": "gain_loss"
-        },
-        {
-            "id": "id",
-            "symbol": "symbol",
-            "negotiation_date": "negotiation_date",
-            "update_date": "update_date",
-            "buy_price": "buy_price",
-            "current_price": "current_price",
-            "active": "active",
-            "initial_amount": "initial_amount",
-            "resulting_amount": "resulting_amount",
-            "gain_loss": "gain_loss"
-        },
-        {
-...
-'''
-Por otro lado, cuando pruebo hacer:
-PUT https://trader-khoalai-bc0010f22430.herokuapp.com/trade/update
-
-'''
-{
-    "id": 67,
-    "current_price": 51,
-    "active": false
-}
-'''
-
-Me responde:
-
-'''
-Internal Server Error
-'''
-
-Te voy a pasar los ENDPOINTS, que vienen de Python y te pido que me ayudes:
-'''
-###############################################################################
-# ENDPOINTS para las negociaciones de Trader Simuladores
-###############################################################################
-
-# Modelo para crear una nueva negociación
-class TradeCreate(BaseModel):
-    symbol: str = Field(..., description="Nombre o símbolo de la acción")
-    buy_price: float = Field(..., description="Valor de compra de la acción")
-    initial_amount: float = Field(0, description="Monto inicial invertido. Si es 0, se usará el buy_price.")
-
-# Modelo para actualizar una negociación existente
-class TradeUpdate(BaseModel):
-    id: int = Field(..., description="ID del trade a actualizar")
-    current_price: float = Field(..., description="Valor actual de la acción")
-    active: bool = Field(True, description="Estado activo (true = negociación abierta, false = cerrada)")
-
-@app.post("/trade/open", summary="Crear nueva negociación")
-def create_trade(trade: TradeCreate):
-    fecha_actual = datetime.date.today()
-    # Si initial_amount es 0 o no se envía, se usa el valor de compra
-    monto_inicial = trade.initial_amount if trade.initial_amount > 0 else trade.buy_price
-
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            # Verificar si ya existe una negociación activa para el mismo símbolo
-            cur.execute(
-                "SELECT id FROM traders WHERE symbol = %s AND active = true",
-                (trade.symbol,)
-            )
-            existing_trade = cur.fetchone()
-            if existing_trade is not None:
-                return {
-                    "message": f"Ya existe una negociación activa para la acción {trade.symbol}. No se creó una nueva negociación."
-                }
-
-            # Insertar la nueva negociación
-            cur.execute(
-                """
-                INSERT INTO traders 
-                (symbol, negotiation_date, update_date, buy_price, current_price, active, initial_amount, resulting_amount, gain_loss)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-                """,
-                (trade.symbol, fecha_actual, fecha_actual, trade.buy_price, trade.buy_price, True, monto_inicial, monto_inicial, 0)
-            )
-            row = cur.fetchone()
-            trade_id = row['id']
-            conn.commit()
-    finally:
-        conn.close()
-
-    return {"id": trade_id, "message": "Negociación creada exitosamente"}
 
 
-@app.put("/trade/update", summary="Actualizar negociación existente")
-def update_trade(trade: TradeUpdate):
-    fecha_actual = datetime.date.today()
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            # Obtener el buy_price y initial_amount actuales para poder recalcular
-            cur.execute("SELECT buy_price, initial_amount FROM traders WHERE id = %s", (trade.id,))
-            record = cur.fetchone()
-            if record is None:
-                raise HTTPException(status_code=404, detail="Negociación no encontrada")
-            buy_price, initial_amount = record
 
-            # Calcular el monto resultante y el porcentaje gain/loss
-            monto_resultante = initial_amount * (trade.current_price / buy_price)
-            gain_loss = (trade.current_price / buy_price - 1) * 100
 
-            cur.execute(
-                """
-                UPDATE traders
-                SET update_date = %s,
-                    current_price = %s,
-                    active = %s,
-                    resulting_amount = %s,
-                    gain_loss = %s
-                WHERE id = %s
-                """,
-                (fecha_actual, trade.current_price, trade.active, monto_resultante, gain_loss, trade.id)
-            )
-            conn.commit()
-    finally:
-        conn.close()
 
-    return {"id": trade.id, "message": "Negociación actualizada exitosamente"}
 
-from typing import Optional
 
-@app.get("/trade/list", summary="Listar negociaciones")
-def list_trades(active: Optional[bool] = None):
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            if active is None:
-                cur.execute(
-                    "SELECT id, symbol, negotiation_date, update_date, buy_price, current_price, active, initial_amount, resulting_amount, gain_loss FROM traders"
-                )
-            else:
-                cur.execute(
-                    "SELECT id, symbol, negotiation_date, update_date, buy_price, current_price, active, initial_amount, resulting_amount, gain_loss FROM traders WHERE active = %s",
-                    (active,)
-                )
-            trades = cur.fetchall()
-    finally:
-        conn.close()
 
-    # Convertir cada registro (tupla) a un diccionario
-    keys = ["id", "symbol", "negotiation_date", "update_date", "buy_price", "current_price", "active", "initial_amount", "resulting_amount", "gain_loss"]
-    trades_list = [dict(zip(keys, trade)) for trade in trades]
 
-    return {"trades": trades_list}
 
-'''
+
+
+
+
+
+
+
+

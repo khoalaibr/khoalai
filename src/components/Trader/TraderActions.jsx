@@ -17,31 +17,29 @@ const TraderActions = () => {
     { label: 'Current Price', key: 'current_price' },
   ];
 
-  // Lanza la consolidación al presionar el botón
+  // Disparar consolidación de acciones
   const handleConsolidateActions = () => {
     dispatch(fetchConsolidatedActions());
   };
 
-  // Función de procesamiento para abrir/actualizar negociaciones
+  // Función de procesamiento para aperturar/actualizar negociaciones
   const processTrades = async (consolidatedData) => {
-    // Procesar apertura de negociaciones
+    // Procesar apertura: se verifica que la diferencia (BUY - SELL) sea >= 3
     for (const symbol of Object.keys(consolidatedData)) {
       const { actions, current_price } = consolidatedData[symbol];
       const actionValues = Object.values(actions);
       const buyCount = actionValues.filter(action => action === 'Buy').length;
       const sellCount = actionValues.filter(action => action === 'Sell').length;
-
-      // Si no se tiene un precio válido, se omite
+      // Condición: la diferencia entre buys y sells debe ser al menos 3 y se debe tener un precio válido
       if (current_price == null) continue;
-
-      //if (buyCount >= 3 && sellCount === 0) {
-        if (buyCount-sellCount >= 3) {
+      if ((buyCount - sellCount) >= 3) {
         try {
-          // Se usa el valor real current_price
+          // Antes de crear, se debería verificar que no exista ya una negociación activa.
+          // Aquí se asume que el endpoint /trade/open ya lo verifica.
           const payload = {
             symbol,
             buy_price: current_price,
-            initial_amount: 1000  // o el monto que decidas usar
+            initial_amount: 1000  // O el monto que decidas usar
           };
           await api.post('/trade/open', payload);
           console.log(`Negociación abierta para ${symbol}`);
@@ -51,25 +49,24 @@ const TraderActions = () => {
       }
     }
 
-    // Procesar actualización de negociaciones activas
+    // Procesar actualización de negociaciones activas:
     try {
       const response = await api.get('/trade/list?active=true');
       const activeTrades = response.data.trades;
-
       for (const trade of activeTrades) {
         let buyCount = 0;
         let newPrice = trade.current_price;
         if (consolidatedData[trade.symbol]) {
           const { actions, current_price } = consolidatedData[trade.symbol];
           buyCount = Object.values(actions).filter(action => action === 'Buy').length;
-          newPrice = current_price; // actualizar con el valor obtenido
+          sellCount = Object.values(actions).filter(action => action === 'Sell').length;
+          newPrice = current_price;
         } else {
-          // Si no hay información consolidada, se entiende que no hay suficientes buys
+          // Si no hay información consolidada para ese símbolo, se considera que no cumple la condición.
           buyCount = 0;
         }
-        if (buyCount < 3) {
+        if ((buyCount - sellCount) < 3) {
           try {
-            // Solo actualizamos si se tiene un precio válido
             if (newPrice == null) continue;
             const payload = {
               id: trade.id,
@@ -83,28 +80,24 @@ const TraderActions = () => {
           }
         }
       }
+      // (Opcional) Después de procesar, refrescar el listado
+      // await dispatch(fetchTrades());
     } catch (error) {
       console.error("Error obteniendo negociaciones activas:", error.response?.data || error.message);
     }
   };
 
-  // useEffect para disparar el procesamiento automáticamente cuando se consolidan las acciones
+  // useEffect para disparar el procesamiento cuando se consolidan las acciones
   useEffect(() => {
     if (!loading && Object.keys(consolidated).length > 0) {
       processTrades(consolidated);
     }
-    // Nota: Asegúrate de que este efecto no se dispare de forma infinita.
-    // Puedes agregar lógica para no volver a procesar si ya se hizo en el último ciclo.
+    // Evita bucles infinitos
   }, [loading, consolidated]);
 
   return (
     <div>
       <h2>Acciones Consolidadas entre Estrategias</h2>
-      <p>
-        Se consultan las estrategias: [breakout_range, fibonacci_rsi, macd_crossover, rsi_v2, volume_breakout] en <code>/backtestAll/&lt;strategy&gt;</code>,
-        filtrando solo Buy/Sell y unificando los resultados.
-      </p>
-
       <button
         className="btn btn-primary mb-3"
         onClick={handleConsolidateActions}
@@ -125,11 +118,9 @@ const TraderActions = () => {
           >
             CSV
           </CSVLink>
-
           <button onClick={() => exportToExcel(flattenedData, 'consolidated_actions')} className="btn btn-success">
             Excel
           </button>
-
           <button onClick={() => exportToPDF(flattenedData, 'consolidated_actions')} className="btn btn-danger">
             PDF
           </button>

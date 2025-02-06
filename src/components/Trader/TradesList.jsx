@@ -22,8 +22,7 @@ const TradesList = () => {
   };
 
   useEffect(() => {
-    // Cargar todas las negociaciones (activas y cerradas)
-    fetchTrades();
+    fetchTrades(); // Cargar todas las negociaciones
   }, []);
 
   return (
@@ -34,7 +33,9 @@ const TradesList = () => {
       {trades.map(trade => (
         <div key={trade.id}>
           <p>
-            <strong>{trade.symbol}</strong> | {trade.active ? 'Activo' : 'Cerrado'} | Precio actual: {trade.current_price}
+            <strong>{trade.symbol}</strong> | {trade.active ? 'Activo' : 'Cerrado'} | 
+            Precio compra: {trade.buy_price} | Precio actual: {trade.current_price} | 
+            Inicial: {trade.initial_amount} | Resultado: {trade.resulting_amount} | Gain/Loss: {trade.gain_loss}
           </p>
         </div>
       ))}
