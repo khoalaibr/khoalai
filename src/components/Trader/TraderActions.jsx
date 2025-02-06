@@ -17,82 +17,91 @@ const TraderActions = () => {
     { label: 'Current Price', key: 'current_price' },
   ];
 
-  // Disparar consolidación de acciones
+  // Función para disparar la consolidación manualmente
   const handleConsolidateActions = () => {
     dispatch(fetchConsolidatedActions());
   };
 
-  // Función de procesamiento para aperturar/actualizar negociaciones
+  // Función de procesamiento para apertura/actualización/cierre de negociaciones
   const processTrades = async (consolidatedData) => {
-    // Procesar apertura: se verifica que la diferencia (BUY - SELL) sea >= 3
-    for (const symbol of Object.keys(consolidatedData)) {
-      const { actions, current_price } = consolidatedData[symbol];
-      const actionValues = Object.values(actions);
-      const buyCount = actionValues.filter(action => action === 'Buy').length;
-      const sellCount = actionValues.filter(action => action === 'Sell').length;
-      // Condición: la diferencia entre buys y sells debe ser al menos 3 y se debe tener un precio válido
-      if (current_price == null) continue;
-      if ((buyCount - sellCount) >= 3) {
-        try {
-          // Antes de crear, se debería verificar que no exista ya una negociación activa.
-          // Aquí se asume que el endpoint /trade/open ya lo verifica.
-          const payload = {
-            symbol,
-            buy_price: current_price,
-            initial_amount: 1000  // O el monto que decidas usar
-          };
-          await api.post('/trade/open', payload);
-          console.log(`Negociación abierta para ${symbol}`);
-        } catch (error) {
-          console.error(`Error abriendo negociación para ${symbol}:`, error.response?.data || error.message);
-        }
-      }
-    }
-
-    // Procesar actualización de negociaciones activas:
     try {
+      // Obtener el listado actual de negociaciones activas
       const response = await api.get('/trade/list?active=true');
       const activeTrades = response.data.trades;
-      for (const trade of activeTrades) {
-        let buyCount = 0;
-        let newPrice = trade.current_price;
-        if (consolidatedData[trade.symbol]) {
-          const { actions, current_price } = consolidatedData[trade.symbol];
-          buyCount = Object.values(actions).filter(action => action === 'Buy').length;
-          sellCount = Object.values(actions).filter(action => action === 'Sell').length;
-          newPrice = current_price;
+      // Mapear por símbolo para un acceso rápido
+      const activeTradeMap = {};
+      activeTrades.forEach(trade => {
+        activeTradeMap[trade.symbol] = trade;
+      });
+
+      // Recorrer cada símbolo consolidado
+      for (const symbol in consolidatedData) {
+        const { actions, current_price } = consolidatedData[symbol];
+        const buyCount = Object.values(actions).filter(action => action === 'Buy').length;
+        const sellCount = Object.values(actions).filter(action => action === 'Sell').length;
+        const diff = buyCount - sellCount;
+        const activeTrade = activeTradeMap[symbol];
+
+        if (diff >= 3) {
+          if (activeTrade) {
+            // Existe negociación activa; si el precio ha cambiado, actualizar current_price
+            if (parseFloat(activeTrade.current_price) !== parseFloat(current_price)) {
+              try {
+                const payload = {
+                  id: activeTrade.id,
+                  current_price,  // se envía el valor actualizado
+                  active: true    // se mantiene activa
+                };
+                await api.put('/trade/update', payload);
+                console.log(`Negociación actualizada para ${symbol}`);
+              } catch (error) {
+                console.error(`Error actualizando negociación para ${symbol}:`, error.response?.data || error.message);
+              }
+            }
+            // Si no ha cambiado el precio, no se hace nada.
+          } else {
+            // No existe negociación activa: crear una nueva negociación
+            try {
+              const payload = {
+                symbol,
+                buy_price: current_price,  // se usa el precio real obtenido
+                initial_amount: 1000       // o el monto que se decida usar
+              };
+              await api.post('/trade/open', payload);
+              console.log(`Negociación abierta para ${symbol}`);
+            } catch (error) {
+              console.error(`Error abriendo negociación para ${symbol}:`, error.response?.data || error.message);
+            }
+          }
         } else {
-          // Si no hay información consolidada para ese símbolo, se considera que no cumple la condición.
-          buyCount = 0;
-        }
-        if ((buyCount - sellCount) < 3) {
-          try {
-            if (newPrice == null) continue;
-            const payload = {
-              id: trade.id,
-              current_price: newPrice,
-              active: false
-            };
-            await api.put('/trade/update', payload);
-            console.log(`Negociación cerrada para ${trade.symbol}`);
-          } catch (error) {
-            console.error(`Error actualizando negociación para ${trade.symbol}:`, error.response?.data || error.message);
+          // diff < 3: Si existe negociación activa, se cierra (active=false) y se actualiza el precio
+          if (activeTrade) {
+            try {
+              const payload = {
+                id: activeTrade.id,
+                current_price,  // actualizar con el precio actual obtenido
+                active: false
+              };
+              await api.put('/trade/update', payload);
+              console.log(`Negociación cerrada para ${symbol}`);
+            } catch (error) {
+              console.error(`Error cerrando negociación para ${symbol}:`, error.response?.data || error.message);
+            }
           }
         }
       }
-      // (Opcional) Después de procesar, refrescar el listado
-      // await dispatch(fetchTrades());
+      // (Opcional) Aquí podrías refrescar el listado de negociaciones en el estado o notificar al usuario.
     } catch (error) {
       console.error("Error obteniendo negociaciones activas:", error.response?.data || error.message);
     }
   };
 
-  // useEffect para disparar el procesamiento cuando se consolidan las acciones
+  // useEffect para disparar el procesamiento automáticamente cuando se consolida la información
   useEffect(() => {
     if (!loading && Object.keys(consolidated).length > 0) {
       processTrades(consolidated);
     }
-    // Evita bucles infinitos
+    // Asegúrate de que este efecto no se dispare en bucle infinito (podrías agregar una bandera para evitar reprocesos innecesarios).
   }, [loading, consolidated]);
 
   return (
