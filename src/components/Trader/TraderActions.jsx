@@ -6,6 +6,8 @@ import { CSVLink } from 'react-csv';
 import { exportToExcel, exportToPDF } from '../../utils/exportUtils';
 import api from '../../services/api';
 
+import './TraderAction.css'; // Importa el
+
 const TraderActions = () => {
   const dispatch = useDispatch();
   const { consolidated, flattenedData, loading, error } = useSelector(state => state.trader);
