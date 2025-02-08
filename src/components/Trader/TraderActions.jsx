@@ -5,8 +5,7 @@ import { fetchConsolidatedActions } from '../../store/traderSlice';
 import { CSVLink } from 'react-csv';
 import { exportToExcel, exportToPDF } from '../../utils/exportUtils';
 import api from '../../services/api';
-
-import './TraderActions.css'; // Importa los estilos
+import './TraderActions.css';
 
 const TraderActions = () => {
   const dispatch = useDispatch();
@@ -15,7 +14,6 @@ const TraderActions = () => {
   // Estado para resultados de negociaciones cerradas
   const [closedStats, setClosedStats] = useState(null);
 
-  // Encabezados para exportar CSV
   const csvHeaders = [
     { label: 'Symbol', key: 'symbol' },
     { label: 'Strategy', key: 'strategy' },
@@ -23,12 +21,10 @@ const TraderActions = () => {
     { label: 'Current Price', key: 'current_price' },
   ];
 
-  // Botón para consolidar acciones
   const handleConsolidateActions = () => {
     dispatch(fetchConsolidatedActions());
   };
 
-  // Botón para obtener resultados de negociaciones cerradas
   const handleGetClosedResults = async () => {
     try {
       const resp = await api.get('/trade/closed-results');
@@ -38,78 +34,76 @@ const TraderActions = () => {
     }
   };
 
-  // Procesamiento para apertura/actualización/cierre de negociaciones
+  // PROCESAMIENTO DE NEGOCIACIONES
   const processTrades = async (consolidatedData) => {
     try {
-      // Obtener negociaciones activas
       const response = await api.get('/trade/list?active=true');
       const activeTrades = response.data.trades;
+
+      // Mapeamos por símbolo para acceder rápidamente
       const activeTradeMap = {};
       activeTrades.forEach(trade => {
         activeTradeMap[trade.symbol] = trade;
       });
 
-      // Recorrer cada símbolo consolidado
+      // Recorremos cada símbolo consolidado
       for (const symbol in consolidatedData) {
         const { actions, current_price } = consolidatedData[symbol];
         const buyCount = Object.values(actions).filter(a => a === 'Buy').length;
         const sellCount = Object.values(actions).filter(a => a === 'Sell').length;
         const diff = buyCount - sellCount;
+
         const activeTrade = activeTradeMap[symbol];
 
-        // Condición para abrir/mantener negociación
+        // Si diff >= 3 => Abrir o actualizar (mantener activa)
         if (diff >= 3) {
           if (activeTrade) {
-            // Actualizar solo si cambia el current_price
+            // Actualizar solo si cambia el precio
             if (parseFloat(activeTrade.current_price) !== parseFloat(current_price)) {
-              try {
-                await api.put('/trade/update', {
-                  id: activeTrade.id,
-                  current_price,
-                  active: true
-                });
-                console.log(`Negociación actualizada para ${symbol}`);
-              } catch (error) {
-                console.error(`Error actualizando negociación para ${symbol}:`, error.response?.data || error.message);
-              }
+              await api.put('/trade/update', {
+                id: activeTrade.id,
+                current_price,
+                active: true
+              });
+              console.log(`Negociación actualizada para ${symbol}`);
             }
           } else {
             // Crear nueva negociación
-            try {
-              await api.post('/trade/open', {
-                symbol,
-                buy_price: current_price,
-                initial_amount: 1000
-              });
-              console.log(`Negociación abierta para ${symbol}`);
-            } catch (error) {
-              console.error(`Error abriendo negociación para ${symbol}:`, error.response?.data || error.message);
-            }
+            await api.post('/trade/open', {
+              symbol,
+              buy_price: current_price,
+              initial_amount: 1000
+            });
+            console.log(`Negociación abierta para ${symbol}`);
           }
         } else {
-          // Cerrar negociación si diff < 3 y está activa
+          // diff < 3 => Si hay negociación activa, cerrarla solo si hay ganancia (gain_loss >= 0)
           if (activeTrade) {
-            try {
+            // Verificar la ganancia actual
+            const gainLoss = parseFloat(activeTrade.gain_loss); // puede ser 0
+            if (gainLoss >= 0) {
               await api.put('/trade/update', {
                 id: activeTrade.id,
                 current_price,
                 active: false
               });
-              console.log(`Negociación cerrada para ${symbol}`);
-            } catch (error) {
-              console.error(`Error cerrando negociación para ${symbol}:`, error.response?.data || error.message);
+              console.log(`Negociación cerrada con ganancia para ${symbol}`);
+            } else {
+              console.log(`Negociación de ${symbol} se mantiene abierta (pérdida actual)`);
             }
           }
         }
       }
-      // Si quieres refrescar el listado de cerradas luego de procesar, puedes llamar handleGetClosedResults aquí:
-      // handleGetClosedResults();
+
+      // Al terminar el proceso, lanzamos un evento para que TradesList se refresque de inmediato
+      window.dispatchEvent(new Event('TRADES_UPDATED'));
+
     } catch (error) {
-      console.error("Error obteniendo negociaciones activas:", error.response?.data || error.message);
+      console.error("Error procesando negociaciones:", error.response?.data || error.message);
     }
   };
 
-  // Dispara el procesamiento automáticamente cuando se consolida la información
+  // Dispara el procesamiento cuando finaliza la consolidación
   useEffect(() => {
     if (!loading && Object.keys(consolidated).length > 0) {
       processTrades(consolidated);
@@ -118,7 +112,6 @@ const TraderActions = () => {
 
   return (
     <div>
-      {/* Botones */}
       <div className="button-group">
         <button
           className="btn btn-primary"
@@ -137,7 +130,7 @@ const TraderActions = () => {
         </button>
       </div>
 
-      {/* Mostrar resumen de negociaciones cerradas */}
+      {/* Card con resultados de negociaciones cerradas */}
       {closedStats && (
         <div className="closed-results-card">
           {closedStats.total_negociaciones === 0 ? (
@@ -158,7 +151,6 @@ const TraderActions = () => {
 
       {error && <div className="alert alert-danger">{error}</div>}
 
-      {/* Botones de exportación (solo si hay data) */}
       {flattenedData.length > 0 && !loading && (
         <div className="mb-3 d-flex gap-2">
           <CSVLink

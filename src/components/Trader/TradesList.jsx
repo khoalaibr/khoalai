@@ -1,5 +1,5 @@
-// Ubicación: src/components/Trader/TradesList.jsx
 import React, { useEffect, useState } from 'react';
+import dayjs from 'dayjs';
 import api from '../../services/api';
 import './TradesList.css'; // Importa el CSS de estilos para las cards
 
@@ -8,12 +8,28 @@ const TradesList = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Nueva función para calcular días
+  const calculateDays = (trade) => {
+    const format = 'YYYY-MM-DD'; // Ajusta según el formato de negotiation_date y update_date
+    const openDate = dayjs(trade.negotiation_date, format);
+
+    if (trade.active) {
+      // Si está activa, se calcula hasta hoy
+      return dayjs().diff(openDate, 'day');
+    } else {
+      // Si está cerrada, se calcula hasta la fecha de cierre (update_date)
+      const closeDate = dayjs(trade.update_date, format);
+      return closeDate.diff(openDate, 'day');
+    }
+  };
+
   const fetchTrades = async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await api.get('/trade/list');
       let tradesData = response.data.trades;
+
       // Ordenar: primero activos (ascendente por símbolo), luego inactivos (ascendente)
       tradesData.sort((a, b) => {
         if (a.active === b.active) {
@@ -22,6 +38,7 @@ const TradesList = () => {
           return a.active ? -1 : 1;
         }
       });
+
       setTrades(tradesData);
     } catch (err) {
       setError(err.response?.data || err.message);
@@ -30,13 +47,26 @@ const TradesList = () => {
     }
   };
 
-  // Al montar el componente se carga el listado y se establece un refresco cada 30 segundos
+  // Refrescar también si recibimos el evento "TRADES_UPDATED" de TraderActions
   useEffect(() => {
+    const handleTradesUpdated = () => {
+      fetchTrades();
+    };
+    window.addEventListener('TRADES_UPDATED', handleTradesUpdated);
+
+    // Cargar todas las negociaciones
     fetchTrades();
+
+    // Cada 30 seg refresca
     const interval = setInterval(() => {
       fetchTrades();
-    }, 30000); // cada 30 segundos
-    return () => clearInterval(interval);
+    }, 30000);
+
+    // Cleanup
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('TRADES_UPDATED', handleTradesUpdated);
+    };
   }, []);
 
   return (
@@ -45,28 +75,33 @@ const TradesList = () => {
       {loading && <p>Cargando negociaciones...</p>}
       {error && <p>Error: {error}</p>}
       <div className="trades-cards">
-        {trades.map(trade => (
-          <div key={trade.id} className="trade-card">
-            <div className="trade-card-header">
-              <h4>{trade.symbol}</h4>
-              <span className={`trade-status ${trade.active ? 'active' : 'inactive'}`}>
-                {trade.active ? 'Activo' : 'Cerrado'}
-              </span>
-            </div>
-            <div className="trade-card-body">
-              <p><strong>Precio compra:</strong> {trade.buy_price}</p>
-              <p><strong>Precio actual:</strong> {trade.current_price}</p>
-              <p><strong>Inicial:</strong> {trade.initial_amount}</p>
-              <p><strong>Resultado:</strong> {trade.resulting_amount}</p>
-              <p>
-                <strong>Gain/Loss:</strong>{' '}
-                <span className={`gain-loss ${trade.gain_loss >= 0 ? 'positive' : 'negative'}`}>
-                  {Number(trade.gain_loss).toFixed(2)}%
+        {trades.map(trade => {
+          const dias = calculateDays(trade);
+          return (
+            <div key={trade.id} className="trade-card">
+              <div className="trade-card-header">
+                <h4>{trade.symbol}</h4>
+                <span className={`trade-status ${trade.active ? 'active' : 'inactive'}`}>
+                  {trade.active ? 'Activo' : 'Cerrado'}
                 </span>
-              </p>
+              </div>
+              <div className="trade-card-body">
+                <p><strong>Precio compra:</strong> {trade.buy_price}</p>
+                <p><strong>Precio actual:</strong> {trade.current_price}</p>
+                <p><strong>Inicial:</strong> {trade.initial_amount}</p>
+                <p><strong>Resultado:</strong> {trade.resulting_amount}</p>
+                <p>
+                  <strong>Gain/Loss:</strong>{' '}
+                  <span className={`gain-loss ${trade.gain_loss >= 0 ? 'positive' : 'negative'}`}>
+                    {Number(trade.gain_loss).toFixed(2)}%
+                  </span>
+                </p>
+                {/* Nuevo campo: días */}
+                <p><strong>Días:</strong> {dias}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
