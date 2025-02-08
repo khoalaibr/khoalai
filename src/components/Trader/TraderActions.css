@@ -1,0 +1,65 @@
+/* Ubicación: src/components/Trader/TraderActions.css */
+
+/* Estilos generales para el contenedor de botones */
+.button-group {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  /* Ejemplo de "reset" o estilo base para todos los .btn */
+  .btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--fuente-principal);
+    transition: background-color var(--transicion);
+  }
+  
+  /* Variantes de color (puedes adaptarlas a tus variables globales) */
+  .btn-primary {
+    background-color: var(--color-primario);
+    color: #fff;
+  }
+  
+  .btn-primary:hover {
+    background-color: var(--color-primario-oscuro);
+  }
+  
+  .btn-secondary {
+    background-color: var(--color-bg-warning);
+    color: var(--color-txt-warning);
+  }
+  
+  .btn-success {
+    background-color: #28a745; /* o la que prefieras */
+    color: #fff;
+  }
+  
+  .btn-danger {
+    background-color: var(--color-bg-danger);
+    color: var(--color-txt-danger);
+  }
+  
+  /* Card de resultados cerrados */
+  .closed-results-card {
+    background: var(--color-bg-warning);
+    border: 1px solid var(--color-brd-warning);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    color: var(--color-txt-warning);
+  }
+  
+  .closed-results-header {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  
+  .closed-results-stats p {
+    margin: 0.3rem 0;
+    font-size: 0.95rem;
+  }
+  
