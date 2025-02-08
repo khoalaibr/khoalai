@@ -62,4 +62,62 @@
     margin: 0.3rem 0;
     font-size: 0.95rem;
   }
+
+  .consolidated-container {
+    margin-top: 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+  }
+  
+  .consolidated-card {
+    background: var(--color-bg-info);
+    border: 1px solid var(--color-brd-info);
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform var(--transicion);
+  }
+  
+  .consolidated-card:hover {
+    transform: translateY(-3px);
+  }
+  
+  .consolidated-header {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--color-txt-primary);
+    margin-bottom: 0.5rem;
+  }
+  
+  .consolidated-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .consolidated-item {
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--color-brd-info);
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .consolidated-item:last-child {
+    border-bottom: none;
+  }
+  
+  .consolidated-action {
+    font-weight: bold;
+  }
+  
+  .consolidated-action.buy {
+    color: green;
+  }
+  
+  .consolidated-action.sell {
+    color: red;
+  }
   
